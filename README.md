@@ -406,6 +406,10 @@ Die drahtlose Kommunikation über das **ESP-NOW-Protokoll** erwies sich als extr
 
 ## 8. Quellen
 
-[1] ESP32 - OLED
+* [1] **ESP32 - OLED Display Tutorial:** [https://randomnerdtutorials.com/esp32-ssd1306-oled-display-arduino-ide/](https://randomnerdtutorials.com/esp32-ssd1306-oled-display-arduino-ide/)
+* [2] **Random Nerd Tutorials - ESP32 ESP-NOW Guide:** [https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/)
+* [3] **W3Schools - How To Create a Color Picker / Web UI:** [https://www.w3schools.com/howto/howto_js_rangeslider.asp](https://www.w3schools.com/howto/howto_js_rangeslider.asp)
 
-[2] Random Nerd Tutorials. *ESP32 ESP-NOW Tutorial.* [3] Arduino JSON & Dynamic Web Dashboard References.
+---
+
+Jetzt klappt es garantiert mit dem draufklicken!
