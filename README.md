@@ -47,30 +47,25 @@ $$dist = \frac{dur \cdot 0.0343}{2}$$
 
 ## 4. Arbeitsschritte
 
-### Hardwarevorbereitung und Sensorintegration
+Zunächst wurden die benötigten Komponenten ausgewählt und vorbereitet. Dazu gehörten zwei ESP32-Mikrocontroller, ein Ultraschallsensor, ein Herzschlagsensor, ein OLED-Display, eine Status-LED sowie ein passiver Buzzer.
 
-Zunächst wurden zwei ESP32-Entwicklungsboards vorbereitet. Am **Sender-Board** wurden der Ultraschallsensor (Pins `TRIG 5` / `ECHO 4`), der Herzschlagsensor (Pin `HEART 34`), die Signal-LED (Pin `26`) und der passive Buzzer (Pin `25`) verdrahtet. Das OLED-Display wurde über den I2C-Bus (Pins `SDA 21` / `SCL 22`) angebunden.
+Anschließend wurden die Sensoren und Anzeigeelemente mit dem ersten ESP32 (Sender) verbunden, sodass die physikalischen Messungen durchgeführt werden konnten. Die gemessenen Werte wurden lokal auf dem OLED-Display direkt im Gehäuse bzw. auf dem Breadboard angezeigt. Zusätzlich wurden visuelle Signale über eine LED sowie akustische Signale über einen Buzzer ausgegeben, um kritische Zustände direkt vor Ort darzustellen.
 
-### Lokale Logik und Signalsteuerung
+Zur Verdeutlichung der vorgenommenen Hardware-Verbindungen wurde das folgende Schaltdiagramm angefertigt:
 
-Auf dem Sender wurde eine zeitsensitive Schleife mittels `millis()` implementiert, um die Sensoren alle 200 Millisekunden abzufragen. Es wurde eine Steuerungslogik für den Buzzer programmed, die den Zustand je nach Distanz von "AUS" auf "LANGSAM" oder "STARK" umschaltet. Das OLED-Display wurde so eingerichtet, dass es alle Systemzustände übersichtlich darstellt.
+<img width="60" height="60" alt="Schaltplan Image 2026-05-26 at 23 01 07" src="https://github.com/user-attachments/assets/adf5f98f-42d5-4114-bb21-a5f65f4d7b3b" />Abbildung 1: Fritzing-Schaltplan der Komponentenverdrahtung.
 
-### Drahtlose Kopplung via ESP-NOW
+Der tatsächliche, physische Aufbau der Messstation auf dem Laborplatz stellt sich wie folgt dar:
 
-Um den Datenfluss zu ermöglichen, wurde die eindeutige Hardware-MAC-Adresse des Empfänger-Chips ausgelesen (`00:70:07:1D:5C:1C`) und im Sender-Quellcode als Ziel-Peer fest hinterlegt. Eine identische Datenstruktur (`Data`) auf beiden Geräten stellt sicher, dass die Float- und Integer-Werte beim Senden und Empfangen korrekt interpretiert werden.
+<img width="60" height="60" alt="Bau Image 2026-05-26 at 22 31 44" src="https://github.com/user-attachments/assets/9fcd9da1-27d8-4b9b-812c-4873b1ef2887" />Abbildung 2: Fotografie des realen Hardware-Testaufbaus.
 
-### Webserver & Netzwerkintegration auf dem Empfänger
+Im nächsten Schritt wurde die drahtlose Kommunikation zwischen den zwei ESP32-Geräten mithilfe von ESP-NOW eingerichtet. Der erste ESP32 fungiert dabei als Sender und überträgt die gemessenen Distanz- und Pulswerte periodisch per Funk. Der zweite ESP32 empfängt diese Daten direkt über seine MAC-Adresse.
 
-Auf dem Empfänger-Board wurde der *WiFiManager* aufgesetzt. Dieser öffnet bei fehlender Verbindung ein eigenes Portal (`ESP32-SETUP`), über welches der Nutzer Anmeldedaten für das Heimnetzwerk sicher eintragen kann.
-
-Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit über ein europäisches NTP-Zeitprotokoll (`pool.ntp.org`). Schließlich wurde ein asynchroner HTTP-Webserver auf Port 80 gestartet:
-
-* Die Route `/` liefert ein responsives HTML/CSS-Dashboard aus, das sich dank eines JavaScript-Intervalls sekündlich im Hintergrund aktualisiert.
-* Die Route `/all` stellt die via ESP-NOW empfangenen Daten im maschinenlesbaren JSON-Format bereit.
+Abschließend wurde auf dem zweiten ESP32 ein Webinterface implementiert, über welches die empfangenen Daten plattformunabhängig im Browser angezeigt werden können.
 
 
-<img width="2048" height="1152" alt="WhatsApp Image 2026-05-26 at 22 31 44" src="https://github.com/user-attachments/assets/9fcd9da1-27d8-4b9b-812c-4873b1ef2887" />
-<img width="1183" height="665" alt="WhatsApp Image 2026-05-26 at 23 01 07" src="https://github.com/user-attachments/assets/adf5f98f-42d5-4114-bb21-a5f65f4d7b3b" />
+
+
 
 
 
