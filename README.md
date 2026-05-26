@@ -66,6 +66,4 @@ Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit �
 
 ---
 
-### Tipp zum Kopieren:
 
-Klicke bei dieser Antwort oben rechts über dem Textfeld auf das kleine **Kopieren-Symbol** (die zwei Quadrate). Wenn du es dann in deinen Editor einfügst, zieht er die Formatierung automatisch sauber mit!
