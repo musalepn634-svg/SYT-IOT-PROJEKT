@@ -1,5 +1,3 @@
-# SYT-IOT-PROJEKT
-Dokumentation
 # Projektdokumentation: IoT Distanz- und Herzschlag-Messstation
 
 **Gruppenmitglieder:** Leon Musa, Musab Ünal
