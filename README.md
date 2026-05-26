@@ -68,6 +68,12 @@ Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit √
 * Die Route `/` liefert ein responsives HTML/CSS-Dashboard aus, das sich dank eines JavaScript-Intervalls sek√ºndlich im Hintergrund aktualisiert.
 * Die Route `/all` stellt die via ESP-NOW empfangenen Daten im maschinenlesbaren JSON-Format bereit.
 
+
+<img width="2048" height="1152" alt="WhatsApp Image 2026-05-26 at 22 31 44" src="https://github.com/user-attachments/assets/9fcd9da1-27d8-4b9b-812c-4873b1ef2887" />
+<img width="1183" height="665" alt="WhatsApp Image 2026-05-26 at 23 01 07" src="https://github.com/user-attachments/assets/adf5f98f-42d5-4114-bb21-a5f65f4d7b3b" />
+
+
+
 ---
 
 ## 5. Quellcode und Implementierung
