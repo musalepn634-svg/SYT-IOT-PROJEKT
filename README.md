@@ -53,11 +53,11 @@ Anschließend wurden die Sensoren und Anzeigeelemente mit dem ersten ESP32 (Send
 
 Zur Verdeutlichung der vorgenommenen Hardware-Verbindungen wurde das folgende Schaltdiagramm angefertigt:
 
-<img width="60" height="60" alt="Schaltplan Image 2026-05-26 at 23 01 07" src="https://github.com/user-attachments/assets/adf5f98f-42d5-4114-bb21-a5f65f4d7b3b" />Abbildung 1: Fritzing-Schaltplan der Komponentenverdrahtung.
+<img width="200" height="200" alt="Schaltplan Image 2026-05-26 at 23 01 07" src="https://github.com/user-attachments/assets/adf5f98f-42d5-4114-bb21-a5f65f4d7b3b" />Abbildung 1: Fritzing-Schaltplan der Komponentenverdrahtung.
 
 Der tatsächliche, physische Aufbau der Messstation auf dem Laborplatz stellt sich wie folgt dar:
 
-<img width="60" height="60" alt="Bau Image 2026-05-26 at 22 31 44" src="https://github.com/user-attachments/assets/9fcd9da1-27d8-4b9b-812c-4873b1ef2887" />Abbildung 2: Fotografie des realen Hardware-Testaufbaus.
+<img width="200" height="200" alt="Bau Image 2026-05-26 at 22 31 44" src="https://github.com/user-attachments/assets/9fcd9da1-27d8-4b9b-812c-4873b1ef2887" />Abbildung 2: Fotografie des realen Hardware-Testaufbaus.
 
 Im nächsten Schritt wurde die drahtlose Kommunikation zwischen den zwei ESP32-Geräten mithilfe von ESP-NOW eingerichtet. Der erste ESP32 fungiert dabei als Sender und überträgt die gemessenen Distanz- und Pulswerte periodisch per Funk. Der zweite ESP32 empfängt diese Daten direkt über seine MAC-Adresse.
 
