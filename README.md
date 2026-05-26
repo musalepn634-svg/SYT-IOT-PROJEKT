@@ -1,9 +1,10 @@
 
+
 # Projektdokumentation: IoT Distanz- und Herzschlag-Messstation
 
 **Gruppenmitglieder:** Leon Musa, Musab Ünal
 
-**Datum:** 25.05.2026
+**Datum:** 20.04.2026
 
 ---
 
@@ -52,7 +53,7 @@ Zunächst wurden zwei ESP32-Entwicklungsboards vorbereitet. Am **Sender-Board** 
 
 ### Lokale Logik und Signalsteuerung
 
-Auf dem Sender wurde eine zeitsensitive Schleife mittels `millis()` implementiert, um die Sensoren alle 200 Millisekunden abzufragen. Es wurde eine Steuerungslogik für den Buzzer programmiert, die den Zustand je nach Distanz von "AUS" auf "LANGSAM" oder "STARK" umschaltet. Das OLED-Display wurde so eingerichtet, dass es alle Systemzustände übersichtlich darstellt.
+Auf dem Sender wurde eine zeitsensitive Schleife mittels `millis()` implementiert, um die Sensoren alle 200 Millisekunden abzufragen. Es wurde eine Steuerungslogik für den Buzzer programmed, die den Zustand je nach Distanz von "AUS" auf "LANGSAM" oder "STARK" umschaltet. Das OLED-Display wurde so eingerichtet, dass es alle Systemzustände übersichtlich darstellt.
 
 ### Drahtlose Kopplung via ESP-NOW
 
@@ -62,7 +63,7 @@ Um den Datenfluss zu ermöglichen, wurde die eindeutige Hardware-MAC-Adresse des
 
 Auf dem Empfänger-Board wurde der *WiFiManager* aufgesetzt. Dieser öffnet bei fehlender Verbindung ein eigenes Portal (`ESP32-SETUP`), über welches der Nutzer Anmeldedaten für das Heimnetzwerk sicher eintragen kann.
 
-Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit über ein europäisches NTP-Zeitprotokoll (`pool.ntp.org`). Sch schließlich wurde ein asynchroner HTTP-Webserver auf Port 80 gestartet:
+Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit über ein europäisches NTP-Zeitprotokoll (`pool.ntp.org`). Schließlich wurde ein asynchroner HTTP-Webserver auf Port 80 gestartet:
 
 * Die Route `/` liefert ein responsives HTML/CSS-Dashboard aus, das sich dank eines JavaScript-Intervalls sekündlich im Hintergrund aktualisiert.
 * Die Route `/all` stellt die via ESP-NOW empfangenen Daten im maschinenlesbaren JSON-Format bereit.
@@ -76,114 +77,136 @@ Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit �
 ```cpp
 #include <WiFi.h>
 #include <esp_now.h>
-#include <esp_wifi.h> // Wichtig für die Kanaleinstellung
+#include <esp_wifi.h> // Erforderlich, um den WLAN-Funkkanal manuell zu erzwingen
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#define TRIG 5
-#define ECHO 4
-#define HEART 34
-#define LED 26
-#define BUZZER 25
+// Definition der GPIO-Pins für die Hardware-Komponenten
+#define TRIG 5        // Trigger-Pin des Ultraschallsensors (Ausgang)
+#define ECHO 4        // Echo-Pin des Ultraschallsensors (Eingang)
+#define HEART 34      // Analoger Pin für den Herzschlagsensor (ADC)
+#define LED 26        // Status-LED für die Pulsanzeige
+#define BUZZER 25     // Akustischer Signalgeber (Passiver Buzzer)
 
+// Initialisierung des OLED-Displays (128x64 Pixel, I2C-Bus, ohne Reset-Pin)
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
-float dist;
-int heart;
-bool detected, buzzState;
+// Globale Variablen für Sensorwerte und Zustände
+float dist;           // Gespeicherte Distanz in Zentimetern
+int heart;            // Analoger Rohwert des Herzschlagsensors (0 bis 4095)
+bool detected;        // True, wenn ein Puls aktiv erkannt wurde
+bool buzzState;       // Wechselt den Zustand des Buzzers (AN/AUS) für das Piep-Intervall
 
+// Zeitstempel-Variablen für das blockierungsfreie Multitasking via millis()
 unsigned long t1, t2, t3, t4;
 
-String buzzTxt = "AUS";
+String buzzTxt = "AUS"; // Textstatus des Buzzers für das OLED-Display
 
-// Die Struktur für ESP-NOW (Identisch mit Empfänger)
+// Datenstruktur für die drahtlose Übertragung (MUSS exakt mit dem Empfänger übereinstimmen)
 typedef struct {
-  float d;
-  int h;
-  bool ok;
-  char timeStr[9]; 
+  float d;           // Datenfeld für die Distanz
+  int h;             // Datenfeld für den analogen Herzwert
+  bool ok;           // Datenfeld für den Puls-Status
+  char timeStr[9];   // Dummy-Feld, da der Sender keine echte NTP-Uhrzeit besitzt
 } Data;
 
-Data sendData;
+Data sendData; // Instanz der Struktur erstellen
 
-// MAC-Adresse des Empfängers
+// Die ausgelesene, eindeutige MAC-Adresse des Empfänger-ESP32
 uint8_t receiverMac[] = {0x00, 0x70, 0x07, 0x1D, 0x5C, 0x1C};
 
+// Funktion zur Messung der Distanz mittels Ultraschall
 float getDist() {
-  digitalWrite(TRIG, 0);
+  digitalWrite(TRIG, 0); // Trigger-Pin kurz säubern
   delayMicroseconds(2);
 
-  digitalWrite(TRIG, 1);
+  digitalWrite(TRIG, 1); // 10 Mikrosekunden langen Schallimpuls aussenden
   delayMicroseconds(10);
   digitalWrite(TRIG, 0);
 
+  // Messen, wie lange das Signal am Echo-Pin auf HIGH steht (Timeout bei 60ms)
   long dur = pulseIn(ECHO, HIGH, 60000);
-  if (!dur) return -1;
+  if (!dur) return -1;   // Falls kein Echo zurückkommt, Fehlerwert zurückgeben
 
+  // Berechnung: Laufzeit * Schallgeschwindigkeit (0.0343 cm/us) geteilt durch 2 (Hin- und Rückweg)
   return dur * 0.0343 / 2;
 }
 
+// Hilfsfunktion zur Textformatierung des Herzwertes
 String heartTxt() {
+  // Wenn der Sensor komplett unberührt ist, liefert der ADC den Maxiwert 4095
   return heart == 4095 ? "Kein Wert" : String(heart);
 }
 
+// Logik zur Steuerung des passiven Warn-Buzzers
 void buzzer() {
+  // Wenn kein Objekt da ist oder der Abstand größer als 10cm ist -> Buzzer ausschalten
   if (dist <= 0 || dist > 10) {
     digitalWrite(BUZZER, 0);
     buzzTxt = "AUS";
     return;
   }
 
+  // Intervall-Steuerung: Unter 5cm wird schnell gepiept (80ms), unter 10cm langsam (300ms)
   int i = dist < 5 ? 80 : 300;
   buzzTxt = dist < 5 ? "STARK" : "LANGSAM";
 
+  // Blockierungsfreie Blink- bzw. Piep-Logik über die Systemzeit
   if (millis() - t4 > i) {
-    t4 = millis();
-    buzzState = !buzzState;
-    digitalWrite(BUZZER, buzzState);
+    t4 = millis();            // Zeitstempel aktualisieren
+    buzzState = !buzzState;   // Zustand invertieren (An wird Aus, Aus wird An)
+    digitalWrite(BUZZER, buzzState); // Signal an den Buzzer-Pin senden
   }
 }
 
+// Callback-Funktion: Wird automatisch aufgerufen, sobald ein ESP-NOW Paket gesendet wurde
 void sent(const wifi_tx_info_t *info, esp_now_send_status_t status) {
   Serial.println(
     status == ESP_NOW_SEND_SUCCESS
-    ? "ESP-NOW OK"
-    : "ESP-NOW Fehler"
+    ? "ESP-NOW OK"      // Übertragung war erfolgreich
+    : "ESP-NOW Fehler"  // Übertragung ist fehlgeschlagen
   );
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(115200); // Seriellen Monitor mit 115200 Baud starten
 
+  // Pin-Modi festlegen
   pinMode(TRIG, OUTPUT);
   pinMode(ECHO, INPUT);
   pinMode(LED, OUTPUT);
   pinMode(BUZZER, OUTPUT);
 
+  // I2C-Kommunikation für das OLED-Display auf Pin 21 (SDA) und Pin 22 (SCL) starten
   Wire.begin(21, 22);
 
+  // OLED-Display initialisieren (Adresse 0x3C ist Standard für diese Displays)
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  display.setTextColor(WHITE);
+  display.setTextColor(WHITE); // Textfarbe festlegen
 
-  // WLAN aktivieren im Station-Modus ohne Verbindung zum Router
+  // WLAN des ESP32 in den Station-Modus versetzen (wird für ESP-NOW benötigt)
   WiFi.mode(WIFI_STA);
 
-  // Funkkanal festlegen
+  // WICHTIG: Den Funkkanal fest auf Kanal 11 zwingen (muss mit dem Empfänger-Router matchen!)
   esp_wifi_set_channel(11, WIFI_SECOND_CHAN_NONE); 
 
+  // ESP-NOW Protokoll initialisieren
   if (esp_now_init() != ESP_OK) {
     Serial.println("ESP-NOW Initialisierung fehlgeschlagen");
     return;
   }
 
+  // Die Callback-Funktion für den Sendestatus im System registrieren
   esp_now_register_send_cb(sent);
 
+  // Empfänger-Gerät (Peer) im System anmelden
   esp_now_peer_info_t p = {};
-  memcpy(p.peer_addr, receiverMac, 6);
-  p.channel = 11; 
-  p.encrypt = false;
+  memcpy(p.peer_addr, receiverMac, 6); // MAC-Adresse in die Struktur kopieren
+  p.channel = 11;                      // Gleicher Funkkanal wie oben definiert
+  p.encrypt = false;                   // Keine Verschlüsselung nutzen
 
+  // Den Partner-ESP32 zur Senderliste hinzufügen
   if (esp_now_add_peer(&p) != ESP_OK) {
     Serial.println("Fehler beim Hinzufügen des Peers");
     return;
@@ -191,42 +214,44 @@ void setup() {
 }
 
 void loop() {
-  // Sensoren im Intervall auslesen (alle 200ms)
+  // ZEITSCHLEIFE 1: Sensoren alle 200 Millisekunden abfragen
   if (millis() - t1 > 200) {
     t1 = millis();
-    dist = getDist();
-    heart = analogRead(HEART);
-    detected = heart < 4095;
-    digitalWrite(LED, detected);
-    buzzer();
+    dist = getDist();             // Distanz messen
+    heart = analogRead(HEART);    // Pulswert einlesen
+    detected = heart < 4095;      // Wenn Wert unter 4095 fällt, berührt jemand den Sensor
+    digitalWrite(LED, detected);  // LED leuchtet im Rhythmus des Herzschlags
+    buzzer();                     // Sound-Logik aktualisieren
   }
 
-  // Daten via ESP-NOW senden (alle 1000ms)
+  // ZEITSCHLEIFE 2: Daten jede Sekunde (1000ms) per Funk senden
   if (millis() - t2 > 1000) {
     t2 = millis();
 
+    // Lokale Variablen in die Funk-Struktur übersetzen
     sendData.d = dist;
     sendData.h = heart;
     sendData.ok = detected;
-    strcpy(sendData.timeStr, "00:00:00"); 
+    strcpy(sendData.timeStr, "00:00:00"); // Dummy-Zeit befüllen
 
+    // Datenpaket direkt an die MAC-Adresse des Empfängers jagen
     esp_now_send(receiverMac, (uint8_t*)&sendData, sizeof(sendData));
     Serial.println("Gesendet -> Dist: " + String(dist) + " Heart: " + heartTxt());
   }
 
-  // OLED Display aktualisieren (alle 500ms)
+  // ZEITSCHLEIFE 3: OLED-Display alle 500 Millisekunden neu beschreiben
   if (millis() - t3 > 500) {
     t3 = millis();
 
-    display.clearDisplay();
-    display.setCursor(0, 0);
+    display.clearDisplay();       // Altes Bild löschen
+    display.setCursor(0, 0);      // Cursor oben links ansetzen
     display.println("ESP32 SENDER");
     display.println("----------------");
     display.println("Dist: " + String(dist) + "cm");
     display.println("Heart: " + heartTxt());
     display.println("LED: " + String(detected ? "AN" : "AUS"));
     display.println("Buzz: " + buzzTxt);
-    display.display();
+    display.display();            // Inhalt physisch auf dem Display anzeigen
   }
 }
 
@@ -240,19 +265,20 @@ void loop() {
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
-#include <WiFiManager.h>
-#include <WebServer.h>
-#include <time.h>
+#include <WiFiManager.h> // Ermöglicht die komfortable WLAN-Anmeldung per Smartphone
+#include <WebServer.h>   // Bibliothek für den Webserver auf Port 80
+#include <time.h>        // Interne Zeitfunktionen für NTP-Synchronisation
 
+// Webserver-Instanz auf dem Standard-HTTP-Port 80 starten
 WebServer server(80);
 
-// Variablen für empfangene Daten
+// Globale Variablen zum Zwischenspeichern der empfangenen Daten
 float dist = -1;
 int heart = 4095;
 bool detected = false;
 String buzzTxt = "AUS"; 
 
-// Struktur für ESP-NOW (Identisch mit Sender)
+// Struktur für ESP-NOW (MUSS exakt mit dem Sender übereinstimmen)
 typedef struct {
   float d;
   int h;
@@ -260,38 +286,46 @@ typedef struct {
   char timeStr[9];
 } Data;
 
-Data incomingData;
+Data incomingData; // Instanz für eingehende Funknachrichten
 
+// Funktion zum Auslesen der aktuellen, per NTP synchronisierten Uhrzeit
 String getTimeNow() {
   struct tm t;
-  if (!getLocalTime(&t)) return "Keine Zeit";
+  if (!getLocalTime(&t)) return "Keine Zeit"; // Falls der NTP-Server noch nicht geantwortet hat
 
   char s[9];
-  strftime(s, 9, "%H:%M:%S", &t);
+  strftime(s, 9, "%H:%M:%S", &t); // Formatierung in Stunden:Minuten:Sekunden
   return String(s);
 }
 
+// Hilfsfunktion zur Textformatierung des empfangenen Herzwertes
 String heartTxt() {
   return heart == 4095 ? "Kein Wert" : String(heart);
 }
 
-// Callback wenn Daten über ESP-NOW reinkommen
+// Callback-Funktion: Wird vollautomatisch aufgerufen, sobald Daten via ESP-NOW reinkommen
 void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+  // Kopiert den Byte-Stream aus dem Funk direkt in unsere strukturierte Variable
   memcpy(&incomingData, data, sizeof(incomingData));
   
+  // Übergebene Werte lokal wegspeichern
   dist = incomingData.d;
   heart = incomingData.h;
   detected = incomingData.ok;
   
+  // Da der Buzzer physikalisch am Sender angeschlossen ist, berechnen wir die Intensität
+  // für die Anzeige im Web-Dashboard hier kurz anhand der Distanz nach
   if (dist <= 0 || dist > 10) {
     buzzTxt = "AUS";
   } else {
     buzzTxt = dist < 5 ? "STARK" : "LANGSAM";
   }
 
+  // Ausgabe auf dem Seriellen Monitor der Basisstation
   Serial.println("Empfangen -> Dist: " + String(dist) + " | Heart: " + heartTxt());
 }
 
+// API-Endpunkt /all: Liefert die Sensordaten im standardisierten JSON-Format aus
 void api() {
   String j =
   "{"
@@ -302,9 +336,10 @@ void api() {
   "\"time\":\"" + getTimeNow() + "\""
   "}";
 
-  server.send(200, "application/json", j);
+  server.send(200, "application/json", j); // HTTP-Status 200 (OK) und JSON an Browser senden
 }
 
+// Hauptseite /: Liefert die HTML-Struktur mit dem automatischen JavaScript-Update aus
 void web() {
   server.send(200, "text/html", R"rawliteral(
   <!DOCTYPE html>
@@ -320,10 +355,12 @@ void web() {
   <h2>Zeit: <span id=t></span></h2>
 
   <script>
+  // JavaScript-Intervall: Fragt jede Sekunde (1000ms) die JSON-Schnittstelle im Hintergrund ab
   setInterval(()=>{
     fetch('/all')
-    .then(r=>r.json())
+    .then(r=>r.json()) // Antwort in JSON umwandeln
     .then(x=>{
+      // Die HTML-Elemente dynamisch mit den neuen Werten befüllen (ohne Seiten-Reload)
       d.innerHTML=x.distance+" cm";
       h.innerHTML=x.heart;
       l.innerHTML=x.detected?"AN":"AUS";
@@ -341,38 +378,47 @@ void web() {
 void setup() {
   Serial.begin(115200);
 
+  // WLAN aktivieren im Station-Modus
   WiFi.mode(WIFI_STA);
 
+  // WiFiManager initialisieren. Wenn der ESP32 kein gespeichertes WLAN findet,
+  // öffnet er ein eigenes, offenes WLAN namens "ESP32-SETUP".
   WiFiManager wm;
-  // Startet Access Point "ESP32-SETUP" falls kein WLAN konfiguriert ist
   wm.autoConnect("ESP32-SETUP");
 
+  // Sobald man sich im Web-Portal angemeldet hat, geht es hier weiter:
   Serial.print("Verbunden! IP-Adresse: ");
-  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.localIP()); // Zeigt die IP-Adresse im Netzwerk an
   
   Serial.print("WLAN Kanal des Routers: ");
-  Serial.println(WiFi.channel()); 
+  Serial.println(WiFi.channel()); // Gibt den aktuellen Funkkanal aus (wichtig für den Sender!)
 
+  // NTP-Zeitserver konfigurieren (Inklusive automatischer Sommer-/Winterzeit-Umstellung für Mitteleuropa)
   configTzTime(
     "CET-1CEST,M3.5.0/2,M10.5.0/3",
     "pool.ntp.org"
   );
 
+  // ESP-NOW auf dem Empfänger-Board starten
   if (esp_now_init() != ESP_OK) {
     Serial.println("ESP-NOW Fehler beim Empfänger");
     return;
   }
 
+  // Die Empfangs-Callback-Funktion im System verankern
   esp_now_register_recv_cb(OnDataRecv);
 
-  server.on("/", web);
-  server.on("/all", api);
+  // Routing für den Webserver festlegen
+  server.on("/", web);     // Wenn jemand die IP direkt aufruft -> HTML-Seite zeigen
+  server.on("/all", api);   // Wenn JavaScript Daten abfragt -> JSON-API antworten
 
+  // Webserver physisch starten
   server.begin();
   Serial.println("Webserver gestartet!");
 }
 
 void loop() {
+  // Dem Server im Dauerloop Zeit geben, eingehende Browser-Anfragen zu verarbeiten
   server.handleClient();
 }
 
@@ -409,7 +455,3 @@ Die drahtlose Kommunikation über das **ESP-NOW-Protokoll** erwies sich als extr
 * [1] **ESP32 - OLED Display Tutorial:** [https://randomnerdtutorials.com/esp32-ssd1306-oled-display-arduino-ide/](https://randomnerdtutorials.com/esp32-ssd1306-oled-display-arduino-ide/)
 * [2] **Random Nerd Tutorials - ESP32 ESP-NOW Guide:** [https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/](https://randomnerdtutorials.com/esp-now-esp32-arduino-ide/)
 * [3] **W3Schools - How To Create a Color Picker / Web UI:** [https://www.w3schools.com/howto/howto_js_rangeslider.asp](https://www.w3schools.com/howto/howto_js_rangeslider.asp)
-
----
-
-
