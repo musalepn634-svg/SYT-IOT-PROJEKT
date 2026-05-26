@@ -412,4 +412,4 @@ Die drahtlose Kommunikation über das **ESP-NOW-Protokoll** erwies sich als extr
 
 ---
 
-Jetzt klappt es garantiert mit dem draufklicken!
+
