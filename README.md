@@ -1,8 +1,9 @@
+
 # Projektdokumentation: IoT Distanz- und Herzschlag-Messstation
 
 **Gruppenmitglieder:** Leon Musa, Musab Ünal
 
-**Datum:** 25.04.2026
+**Datum:** 25.05.2026
 
 ---
 
@@ -43,11 +44,34 @@ $$dist = \frac{dur \cdot 0.0343}{2}$$
 
 ---
 
-## 4. Quellcode und Implementierung
+## 4. Arbeitsschritte
 
-### 4.1 Sender-Code (Messstation)
+### Hardwarevorbereitung und Sensorintegration
 
-Der folgende Programmcode läuft auf dem Sender-ESP32. Er steuert die Sensorik an, verarbeitet die Alarm-Logik für LED und Buzzer, aktualisiert das OLED-Display und sendet die Datenstrukturen per ESP-NOW:
+Zunächst wurden zwei ESP32-Entwicklungsboards vorbereitet. Am **Sender-Board** wurden der Ultraschallsensor (Pins `TRIG 5` / `ECHO 4`), der Herzschlagsensor (Pin `HEART 34`), die Signal-LED (Pin `26`) und der passive Buzzer (Pin `25`) verdrahtet. Das OLED-Display wurde über den I2C-Bus (Pins `SDA 21` / `SCL 22`) angebunden.
+
+### Lokale Logik und Signalsteuerung
+
+Auf dem Sender wurde eine zeitsensitive Schleife mittels `millis()` implementiert, um die Sensoren alle 200 Millisekunden abzufragen. Es wurde eine Steuerungslogik für den Buzzer programmiert, die den Zustand je nach Distanz von "AUS" auf "LANGSAM" oder "STARK" umschaltet. Das OLED-Display wurde so eingerichtet, dass es alle Systemzustände übersichtlich darstellt.
+
+### Drahtlose Kopplung via ESP-NOW
+
+Um den Datenfluss zu ermöglichen, wurde die eindeutige Hardware-MAC-Adresse des Empfänger-Chips ausgelesen (`00:70:07:1D:5C:1C`) und im Sender-Quellcode als Ziel-Peer fest hinterlegt. Eine identische Datenstruktur (`Data`) auf beiden Geräten stellt sicher, dass die Float- und Integer-Werte beim Senden und Empfangen korrekt interpretiert werden.
+
+### Webserver & Netzwerkintegration auf dem Empfänger
+
+Auf dem Empfänger-Board wurde der *WiFiManager* aufgesetzt. Dieser öffnet bei fehlender Verbindung ein eigenes Portal (`ESP32-SETUP`), über welches der Nutzer Anmeldedaten für das Heimnetzwerk sicher eintragen kann.
+
+Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit über ein europäisches NTP-Zeitprotokoll (`pool.ntp.org`). Sch schließlich wurde ein asynchroner HTTP-Webserver auf Port 80 gestartet:
+
+* Die Route `/` liefert ein responsives HTML/CSS-Dashboard aus, das sich dank eines JavaScript-Intervalls sekündlich im Hintergrund aktualisiert.
+* Die Route `/all` stellt die via ESP-NOW empfangenen Daten im maschinenlesbaren JSON-Format bereit.
+
+---
+
+## 5. Quellcode und Implementierung
+
+### 5.1 Sender-Code (Messstation)
 
 ```cpp
 #include <WiFi.h>
@@ -210,9 +234,7 @@ void loop() {
 
 ---
 
-### 4.2 Empfänger-Code (Basisstation)
-
-Der folgende Programmcode läuft auf dem Empfänger-ESP32. Er verwaltet das WLAN-Netzwerk über den *WiFiManager*, synchronisiert die Zeit, nimmt die ESP-NOW-Pakete entgegen und hostet den asynchronen Webserver:
+### 5.2 Empfänger-Code (Basisstation)
 
 ```cpp
 #include <WiFi.h>
@@ -358,47 +380,19 @@ void loop() {
 
 ---
 
-## 5. Arbeitsschritte
+## 6. Tabellen
 
-### Hardwarevorbereitung und Sensorintegration
+| Komponente | Funktion |
+| --- | --- |
+| **ESP32 (Sender)** | Erfassung und Übertragung der Daten |
+| **ESP32 (Empfänger)** | Empfang und Anzeige im Webinterface |
+| **Ultraschallsensor** | Messung der Distanz |
+| **Herzschlagsensor** | Erfassung der Pulsaktivität |
+| **OLED-Display** | Lokale Anzeige der Messwerte |
+| **LED** | Visuelle Darstellung bei erkanntem Puls |
+| **Buzzer** | Akustisches Signal bei geringem Abstand |
 
-Zunächst wurden zwei ESP32-Entwicklungsboards vorbereitet. Am **Sender-Board** wurden der Ultraschallsensor (Pins `TRIG 5` / `ECHO 4`), der Herzschlagsensor (Pin `HEART 34`), die Signal-LED (Pin `26`) und der passive Buzzer (Pin `25`) verdrahtet. Das OLED-Display wurde über den I2C-Bus (Pins `SDA 21` / `SCL 22`) angebunden.
-
-### Lokale Logik und Signalsteuerung
-
-Auf dem Sender wurde eine zeitsensitive Schleife mittels `millis()` implementiert, um die Sensoren alle 200 Millisekunden abzufragen. Es wurde eine Steuerungslogik für den Buzzer programmiert, die den Zustand je nach Distanz von "AUS" auf "LANGSAM" oder "STARK" umschaltet. Das OLED-Display wurde so eingerichtet, dass es alle Systemzustände übersichtlich darstellt.
-
-### Drahtlose Kopplung via ESP-NOW
-
-Um den Datenfluss zu ermöglichen, wurde die eindeutige Hardware-MAC-Adresse des Empfänger-Chips ausgelesen (`00:70:07:1D:5C:1C`) und im Sender-Quellcode als Ziel-Peer fest hinterlegt. Eine identische Datenstruktur (`Data`) auf beiden Geräten stellt sicher, dass die Float- und Integer-Werte beim Senden und Empfangen korrekt interpretiert werden.
-
-### Webserver & Netzwerkintegration auf dem Empfänger
-
-Auf dem Empfänger-Board wurde der *WiFiManager* aufgesetzt. Dieser öffnet bei fehlender Verbindung ein eigenes Portal (`ESP32-SETUP`), über welches der Nutzer Anmeldedaten für das Heimnetzwerk sicher eintragen kann.
-
-Nach erfolgreichem Verbindungsaufbau holt sich das System die aktuelle Uhrzeit über ein europäisches NTP-Zeitprotokoll (`pool.ntp.org`). Schließlich wurde ein asynchroner HTTP-Webserver auf Port 80 gestartet:
-
-* Die Route `/` liefert ein responsives HTML/CSS-Dashboard aus, das sich dank eines JavaScript-Intervalls sekündlich im Hintergrund aktualisiert.
-* Die Route `/all` stellt die via ESP-NOW empfangenen Daten im maschinenlesbaren JSON-Format bereit.
-
----
-
-## 6. Hardware-Komponenten und Pin-Belegung
-
-Die folgende Tabelle zeigt die in diesem Projekt verwendeten Bauteile sowie deren logische Zuordnung und physische Verbindung mit dem Sender-ESP32:
-
-| Komponente | Modell / Typ | Funktion im Projekt | Anschluss am ESP32 (Sender) |
-| --- | --- | --- | --- |
-| **Mikrocontroller (2x)** | NodeMCU ESP32 WROOM | Zentraler Prozessor für Messung (Sender) und Webserver (Empfänger) | - |
-| **Ultraschallsensor** | HC-SR04 | Misst den Abstand zu Objekten via Schalllaufzeit | `TRIG` $\rightarrow$ Pin 5 <br>
-
-<br> `ECHO` $\rightarrow$ Pin 4 |
-| **Herzschlagsensor** | Analog Pulse Sensor | Erfasst Pulsaktivität über infrarotes Licht | `Signal` $\rightarrow$ Pin 34 (Analog) |
-| **OLED-Display** | SSD1306 ($128 \times 64$) | Lokale visuelle Ausgabe der Sensorwerte am Sender | `SDA` $\rightarrow$ Pin 21 <br>
-
-<br> `SCL` $\rightarrow$ Pin 22 |
-| **LED** | Standard-LED | Visueller Signalgeber bei erkanntem Herzschlag | Anode $\rightarrow$ Pin 26 |
-| **Akustischer Geber** | Passiver Buzzer | Gibt intervallartige Warntöne aus (je nach Distanz) | `+` $\rightarrow$ Pin 25 |
+Die Tabelle zeigt die verwendeten Komponenten und deren jeweilige Funktion im System.
 
 ---
 
@@ -406,13 +400,12 @@ Die folgende Tabelle zeigt die in diesem Projekt verwendeten Bauteile sowie dere
 
 Im Zuge dieses Projekts wurde erfolgreich ein verteiltes IoT-System zur kombinierten Erfassung von Distanz- und Herzschlagdaten realisiert. Durch die logische Trennung in eine autarke Messstation (Sender) und eine netzwerkintegrierte Basisstation (Empfänger) konnte eine effiziente Arbeitsaufteilung der Hardware erzielt werden.
 
-Die drahtlose Kommunikation über das **ESP-NOW-Protokoll** erwies sich als extrem latenzarm und zuverlässig, da der zeitaufwendige Datentransfer über einen WLAN-Router entfiel. Lokale Warnmechanismen (Buzzer und LED) sowie die grafische Aufbereitung auf dem OLED-Display garantieren die direkte Nutzbarkeit am Sender. Gleichzeitig ermöglicht das moderne Webinterface des Empfängers eine plattformunabhängige Fernüberwachung der Live-Daten im Sekundentakt über jeden gängigen Internetbrowser.
+Die drahtlose Kommunikation über das **ESP-NOW-Protokoll** erwies sich als extrem latenzarm und zuverlässig, da der zeitaufwendige Datentransfer über einen WLAN-Router entfiel. Lokale Warnmechanismen (Buzzer und LED) sowie die grafische Aufbereitung auf dem OLED-Display garantieren die direkte Nutzbarkeit am Sender. Gleichzeitig ermöglicht das moderne Webinterface des Empfängers eine plattformunabhängige Fernüberwachung der Live-Daten im Sekundentakt über einen gängigen Internetbrowser.
 
 ---
 
-## 8. Quellenverzeichnis
+## 8. Quellen
 
-* **Espressif Systems:** *ESP-NOW User Guide & Technical Documentation.* [Online] Verfügbar unter: [https://docs.espressif.com/](https://docs.espressif.com/)
-* **Adafruit Industries:** *Adafruit SSD1306 Library Guide (OLED Displays).* [Online] Verfügbar unter: [https://github.com/adafruit/Adafruit_SSD1306](https://github.com/adafruit/Adafruit_SSD1306)
-* **Tzapu:** *WiFiManager for ESP32/ESP8266 documentation.* [Online] Verfügbar unter: [https://github.com/tzapu/WiFiManager](https://github.com/tzapu/WiFiManager)
-* **Arduino LLC:** *Arduino Reference Language & Wire Library Guide.* [Online] Verfügbar unter: [https://www.arduino.cc/reference/en/](https://www.arduino.cc/reference/en/)
+[1] ESP32 - OLED
+
+[2] Random Nerd Tutorials. *ESP32 ESP-NOW Tutorial.* [3] Arduino JSON & Dynamic Web Dashboard References.
