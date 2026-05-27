@@ -36,7 +36,7 @@ Das **ESP-NOW-Protokoll** arbeitet auf der MAC-Schicht des WLAN-Moduls. Da kein 
 ### Sensorik und Signalverarbeitung
 
 * **Ultraschallsensor (HC-SR04):** Sendet einen hochfrequenten Schallimpuls aus und misst die Zeit ($dur$), bis das Echo am Sensor registriert wird. Die Distanz berechnet sich anhand der Schallgeschwindigkeit in Luft ($0.0343 \text{ cm/µs}$) über die Formel:
-
+ 
 $$dist = \frac{dur \cdot 0.0343}{2}$$
 
 
